@@ -108,7 +108,7 @@ const main = async () => {
     const changedFiles = await getChangedFiles(octokit, base, head);
     const nxFile = await readNxFile();
     const implicitDependencies = Object.keys(nxFile.implicitDependencies || {})
-        .map(file => ({ file, target: '*' }))
+        .map(file => ({ file }))
         .concat(Object.entries(nxFile.projects).reduce((result, [name, project]) => {
         const implicitDependencies = (project === null || project === void 0 ? void 0 : project.implicitDependencies) || [];
         implicitDependencies.forEach(key => {

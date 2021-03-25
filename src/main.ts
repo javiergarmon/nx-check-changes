@@ -80,13 +80,13 @@ const getChanges = ({
   libsDir: string;
   allApps: string[];
   allLibs: string[];
-  implicitDependencies: string[];
+  implicitDependencies: any[];
   changedFiles: string[];
 }): Changes => {
   const findApp = dirFinder(appsDir);
   const findLib = dirFinder(libsDir);
   const findImplicitDependencies = (file: string) =>
-    implicitDependencies.find(dependency => file === dependency);
+    implicitDependencies.find(dependency => file === dependency.file);
 
   const changes = changedFiles.reduce<{
     apps: Set<string>;
@@ -103,7 +103,20 @@ const getChanges = ({
 
       const lib = findLib(file);
       if (lib) {
+        const libName = lib.slice(libsDir.length + 1)
+
         accumulatedChanges.libs.add(lib);
+        const projects = implicitDependencies.find(dependency => dependency.key === libName)?.projects
+
+        projects && [...projects].forEach((project: string) => {
+          if(allApps.includes(project)){
+            accumulatedChanges.apps.add(project)
+          }
+
+          if(allLibs.includes(project)){
+            accumulatedChanges.libs.add(project)
+          }
+        })
       }
 
       const app = findApp(file);
@@ -139,14 +152,32 @@ const main = async () => {
 
   const changedFiles = await getChangedFiles(octokit, base, head);
   const nxFile = await readNxFile();
-  const implicitDependencies = nxFile.implicitDependencies
-    ? Object.keys(nxFile.implicitDependencies)
-    : [];
+  const implicitDependencies = Object.keys(nxFile.implicitDependencies || {})
+    .map(file => ({file, target: '*'}))
+    .concat(
+      Object.entries(nxFile.projects).reduce((result: any[], [name, project]) => {
+        const implicitDependencies = project?.implicitDependencies || []
+
+        implicitDependencies.forEach(key => {
+          let lib = result.find(item => item.key === key)
+
+          if(!lib){
+            lib = {key, projects: new Set()}
+            result.push(lib)
+          }
+
+          lib.projects.add(name)
+        })
+
+        return result
+      }, [])
+    )
+
   const appsDir = nxFile.workspaceLayout?.appsDir || 'apps';
   const libsDir = nxFile.workspaceLayout?.libsDir || 'libs';
 
-  const allApps = await fs.readdir(appsDir);
-  const allLibs = await fs.readdir(libsDir);
+  const allApps = (await fs.readdir(appsDir)).filter(name => name[0] !== '.');
+  const allLibs = (await fs.readdir(libsDir)).filter(name => name[0] !== '.');
   console.log(allApps)
   console.log(allLibs)
 

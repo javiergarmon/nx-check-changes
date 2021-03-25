@@ -64,26 +64,26 @@ const getChanges = ({ appsDir, libsDir, allApps, allLibs, implicitDependencies, 
         const implicitDependency = findImplicitDependencies(file);
         if (implicitDependency) {
             accumulatedChanges.implicitDependencies.push(implicitDependency.file);
-            allApps.forEach(app => accumulatedChanges.apps.add(app));
-            allLibs.forEach(lib => accumulatedChanges.libs.add(lib));
+            allApps.forEach(app => accumulatedChanges.apps.add(app.split('/').slice(-1)[0]));
+            allLibs.forEach(lib => accumulatedChanges.libs.add(lib.split('/').slice(-1)[0]));
         }
         const lib = findLib(file);
         if (lib) {
-            const libName = lib.slice(libsDir.length + 1);
-            accumulatedChanges.libs.add(lib);
+            const libName = lib.split('/').slice(-1)[0];
+            accumulatedChanges.libs.add(lib.split('/').slice(-1)[0]);
             const projects = (_a = implicitDependencies.find(dependency => dependency.key === libName)) === null || _a === void 0 ? void 0 : _a.projects;
             projects && [...projects].forEach((project) => {
                 if (allApps.includes(project)) {
-                    accumulatedChanges.apps.add(project);
+                    accumulatedChanges.apps.add(project.split('/').slice(-1)[0]);
                 }
                 if (allLibs.includes(project)) {
-                    accumulatedChanges.libs.add(project);
+                    accumulatedChanges.libs.add(project.split('/').slice(-1)[0]);
                 }
             });
         }
         const app = findApp(file);
         if (app) {
-            accumulatedChanges.apps.add(app);
+            accumulatedChanges.apps.add(app.split('/').slice(-1)[0]);
         }
         return accumulatedChanges;
     }, {
@@ -125,9 +125,6 @@ const main = async () => {
     const libsDir = ((_b = nxFile.workspaceLayout) === null || _b === void 0 ? void 0 : _b.libsDir) || 'libs';
     const allApps = (await fs_1.promises.readdir(appsDir)).filter(name => name[0] !== '.');
     const allLibs = (await fs_1.promises.readdir(libsDir)).filter(name => name[0] !== '.');
-    console.log(allApps);
-    console.log(allLibs);
-    console.log(implicitDependencies);
     const changes = getChanges({
         appsDir,
         libsDir,
@@ -142,7 +139,7 @@ const main = async () => {
     console.log(changes.libs);
     console.log('changed implicit dependencies:');
     console.log(changes.implicitDependencies);
-    core_1.setOutput('changed-apps-matrix', JSON.stringify(changes));
+    core_1.setOutput('changed-apps-matrix', JSON.stringify(changes.apps));
     core_1.setOutput('changed-apps', changes.apps.join(' '));
     core_1.setOutput('changed-libs', changes.libs.join(' '));
     core_1.setOutput('changed-dirs', [...changes.apps, ...changes.libs].join(' '));

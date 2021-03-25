@@ -63,7 +63,7 @@ const getChanges = ({ appsDir, libsDir, allApps, allLibs, implicitDependencies, 
         var _a;
         const implicitDependency = findImplicitDependencies(file);
         if (implicitDependency) {
-            accumulatedChanges.implicitDependencies.push(implicitDependency);
+            accumulatedChanges.implicitDependencies.push(implicitDependency.file);
             allApps.forEach(app => accumulatedChanges.apps.add(app));
             allLibs.forEach(lib => accumulatedChanges.libs.add(lib));
         }

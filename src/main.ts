@@ -71,11 +71,15 @@ const dirFinder = (dir: string) => {
 const getChanges = ({
   appsDir,
   libsDir,
+  allApps,
+  allLibs,
   implicitDependencies,
   changedFiles
 }: {
   appsDir: string;
   libsDir: string;
+  allApps: string[];
+  allLibs: string[];
   implicitDependencies: string[];
   changedFiles: string[];
 }): Changes => {
@@ -90,18 +94,23 @@ const getChanges = ({
     implicitDependencies: string[];
   }>(
     (accumulatedChanges, file) => {
-      const app = findApp(file);
-      if (app) {
-        accumulatedChanges.apps.add(app);
+      const implicitDependency = findImplicitDependencies(file);
+      if (implicitDependency) {
+        accumulatedChanges.implicitDependencies.push(implicitDependency);
+        allApps.forEach(app => accumulatedChanges.apps.add(app))
+        allLibs.forEach(lib => accumulatedChanges.libs.add(lib))
       }
+
       const lib = findLib(file);
       if (lib) {
         accumulatedChanges.libs.add(lib);
       }
-      const implicitDependency = findImplicitDependencies(file);
-      if (implicitDependency) {
-        accumulatedChanges.implicitDependencies.push(implicitDependency);
+
+      const app = findApp(file);
+      if (app) {
+        accumulatedChanges.apps.add(app);
       }
+
       return accumulatedChanges;
     },
     {
@@ -129,7 +138,6 @@ const main = async () => {
   });
 
   const changedFiles = await getChangedFiles(octokit, base, head);
-
   const nxFile = await readNxFile();
   const implicitDependencies = nxFile.implicitDependencies
     ? Object.keys(nxFile.implicitDependencies)
@@ -137,9 +145,16 @@ const main = async () => {
   const appsDir = nxFile.workspaceLayout?.appsDir || 'apps';
   const libsDir = nxFile.workspaceLayout?.libsDir || 'libs';
 
+  const allApps = await fs.readdir(appsDir);
+  const allLibs = await fs.readdir(libsDir);
+  console.log(allApps)
+  console.log(allLibs)
+
   const changes = getChanges({
     appsDir,
     libsDir,
+    allApps,
+    allLibs,
     implicitDependencies,
     changedFiles
   });
@@ -153,6 +168,7 @@ const main = async () => {
   console.log('changed implicit dependencies:');
   console.log(changes.implicitDependencies);
 
+  setOutput('changed-apps-matrix', JSON.stringify(changes));
   setOutput('changed-apps', changes.apps.join(' '));
   setOutput('changed-libs', changes.libs.join(' '));
   setOutput('changed-dirs', [...changes.apps, ...changes.libs].join(' '));

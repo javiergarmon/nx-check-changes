@@ -180,6 +180,7 @@ const main = async () => {
   const allLibs = (await fs.readdir(libsDir)).filter(name => name[0] !== '.');
   console.log(allApps)
   console.log(allLibs)
+  console.log(implicitDependencies)
 
   const changes = getChanges({
     appsDir,

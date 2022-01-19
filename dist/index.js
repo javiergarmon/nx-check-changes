@@ -11,7 +11,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core_1 = __nccwpck_require__(186);
 const github_1 = __nccwpck_require__(438);
 const fs_1 = __nccwpck_require__(747);
-const getBaseAndHeadRefs = ({ base, head }) => {
+const getBaseAndHeadRefs = ({ base, head, ignore }) => {
     var _a, _b, _c, _d;
     switch (github_1.context.eventName) {
         case 'pull_request':
@@ -27,14 +27,26 @@ const getBaseAndHeadRefs = ({ base, head }) => {
                 throw new Error(`Missing 'base' or 'head' refs for event type '${github_1.context.eventName}'`);
             }
     }
+    let parsedIgnore = [];
+    try {
+        const tmp = JSON.parse(ignore);
+        if (Array.isArray(tmp)) {
+            parsedIgnore = tmp;
+        }
+    }
+    catch {
+        core_1.info(`Ignore input "${ignore}" can not be parsed`);
+    }
     if (!base || !head) {
         throw new Error(`Base or head refs are missing`);
     }
     core_1.info(`Base ref: ${base}`);
     core_1.info(`Head ref: ${head}`);
+    core_1.info(`Ignore ref: [${parsedIgnore.join(',')}]`);
     return {
         base,
-        head
+        head,
+        ignore: parsedIgnore
     };
 };
 const getChangedFiles = async (octokit, base, head) => {
@@ -55,7 +67,7 @@ const dirFinder = (dir) => {
     const pathRegExp = new RegExp(`(${dir}\\/[^/]+)\\/.+`);
     return (file) => { var _a; return (_a = file.match(pathRegExp)) === null || _a === void 0 ? void 0 : _a[1]; };
 };
-const getChanges = ({ appsDir, libsDir, allApps, allLibs, implicitDependencies, changedFiles }) => {
+const getChanges = ({ appsDir, libsDir, allApps, allLibs, implicitDependencies, changedFiles, ignore }) => {
     const findApp = dirFinder(appsDir);
     const findLib = dirFinder(libsDir);
     const findImplicitDependencies = (file) => implicitDependencies.find(dependency => file === dependency.file);
@@ -92,8 +104,8 @@ const getChanges = ({ appsDir, libsDir, allApps, allLibs, implicitDependencies, 
         implicitDependencies: []
     });
     return {
-        apps: [...changes.apps.values()],
-        libs: [...changes.libs.values()],
+        apps: [...changes.apps.values()].filter(name => !ignore.includes(name)),
+        libs: [...changes.libs.values()].filter(name => !ignore.includes(name)),
         implicitDependencies: changes.implicitDependencies
     };
 };
@@ -101,9 +113,10 @@ const main = async () => {
     var _a, _b;
     const token = process.env.GITHUB_TOKEN;
     const octokit = github_1.getOctokit(token);
-    const { base, head } = getBaseAndHeadRefs({
+    const { base, head, ignore } = getBaseAndHeadRefs({
         base: core_1.getInput('baseRef'),
-        head: core_1.getInput('headRef')
+        head: core_1.getInput('headRef'),
+        ignore: core_1.getInput('ignore')
     });
     const changedFiles = await getChangedFiles(octokit, base, head);
     const nxFile = await readNxFile();
@@ -131,7 +144,8 @@ const main = async () => {
         allApps,
         allLibs,
         implicitDependencies,
-        changedFiles
+        changedFiles,
+        ignore
     });
     console.log('changed apps:');
     console.log(changes.apps);

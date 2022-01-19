@@ -11,6 +11,8 @@ inputs:
     description: Ref to the base.
   headRef:
     description: Ref to the head.
+  ignore:
+    description: Array with apps to ignore
 outputs:
   changed-apps:
     description: Space-delimited string of changed apps

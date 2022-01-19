@@ -105,7 +105,7 @@ const getChanges = ({ appsDir, libsDir, allApps, allLibs, implicitDependencies, 
     });
     return {
         apps: [...changes.apps.values()].filter(name => !ignore.includes(name)),
-        libs: [...changes.libs.values()].filter(name => !ignore.includes(name)),
+        libs: [...changes.libs.values()],
         implicitDependencies: changes.implicitDependencies
     };
 };

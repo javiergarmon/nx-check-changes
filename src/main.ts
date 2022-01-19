@@ -14,9 +14,19 @@ interface Changes {
 interface Refs {
   base: string;
   head: string;
+  ignore: string[];
+
 }
 
-const getBaseAndHeadRefs = ({ base, head }: Partial<Refs>): Refs => {
+const getBaseAndHeadRefs = ({
+  base,
+  head,
+  ignore
+}: {
+  base: string;
+  head: string;
+  ignore: string;
+}): Refs => {
   switch (context.eventName) {
     case 'pull_request':
       base = context.payload.pull_request?.base?.sha as string;
@@ -32,16 +42,30 @@ const getBaseAndHeadRefs = ({ base, head }: Partial<Refs>): Refs => {
       }
   }
 
+  let parsedIgnore: string[] = [];
+
+  try {
+    const tmp = JSON.parse(ignore);
+
+    if (Array.isArray(tmp)) {
+      parsedIgnore = tmp;
+    }
+  } catch {
+    info(`Ignore input "${ignore}" can not be parsed`);
+  }
+
   if (!base || !head) {
     throw new Error(`Base or head refs are missing`);
   }
 
   info(`Base ref: ${base}`);
   info(`Head ref: ${head}`);
+  info(`Ignore ref: [${parsedIgnore.join(',')}]`);
 
   return {
     base,
-    head
+    head,
+    ignore: parsedIgnore
   };
 };
 
@@ -74,7 +98,8 @@ const getChanges = ({
   allApps,
   allLibs,
   implicitDependencies,
-  changedFiles
+  changedFiles,
+  ignore
 }: {
   appsDir: string;
   libsDir: string;
@@ -82,6 +107,7 @@ const getChanges = ({
   allLibs: string[];
   implicitDependencies: any[];
   changedFiles: string[];
+  ignore: string[];
 }): Changes => {
   const findApp = dirFinder(appsDir);
   const findLib = dirFinder(libsDir);
@@ -134,20 +160,20 @@ const getChanges = ({
   );
 
   return {
-    apps: [...changes.apps.values()],
-    libs: [...changes.libs.values()],
+    apps: [...changes.apps.values()].filter(name => !ignore.includes(name)),
+    libs: [...changes.libs.values()].filter(name => !ignore.includes(name)),
     implicitDependencies: changes.implicitDependencies
   };
 };
 
 const main = async () => {
   const token = process.env.GITHUB_TOKEN;
-
   const octokit = getOctokit(token as string);
 
-  const { base, head } = getBaseAndHeadRefs({
+  const { base, head, ignore } = getBaseAndHeadRefs({
     base: getInput('baseRef'),
-    head: getInput('headRef')
+    head: getInput('headRef'),
+    ignore: getInput('ignore')
   });
 
   const changedFiles = await getChangedFiles(octokit, base, head);
@@ -184,7 +210,8 @@ const main = async () => {
     allApps,
     allLibs,
     implicitDependencies,
-    changedFiles
+    changedFiles,
+    ignore
   });
 
   console.log('changed apps:');

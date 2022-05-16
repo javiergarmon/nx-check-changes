@@ -1,6 +1,7 @@
 import { getInput, info, setFailed, setOutput } from '@actions/core';
 import { context, getOctokit } from '@actions/github';
-import { NxJson } from '@nrwl/workspace';
+import { NxJsonConfiguration, WorkspaceJsonConfiguration } from '@nrwl/devkit';
+import * as nx from '@nrwl/workspace';
 import { promises as fs } from 'fs';
 
 type OctoKit = ReturnType<typeof getOctokit>;
@@ -81,9 +82,11 @@ const getChangedFiles = async (octokit: OctoKit, base: string, head: string): Pr
   return files.map(file => file.filename);
 };
 
-const readNxFile = async (): Promise<NxJson> => {
-  const nxFile = await fs.readFile('nx.json', { encoding: 'utf-8' });
-  return JSON.parse(nxFile) as NxJson;
+const readNx = (): { nx: NxJsonConfiguration; workspace: WorkspaceJsonConfiguration } => {
+  return {
+    nx: nx.readNxJson(),
+    workspace: nx.readWorkspaceJson()
+  };
 };
 
 const dirFinder = (dir: string) => {
@@ -183,13 +186,14 @@ const main = async () => {
 
   info('2');
 
-  const nxFile = await readNxFile();
-  info(JSON.stringify(nxFile));
+  const { nx, workspace } = readNx();
+  info(JSON.stringify(nx));
+  info(JSON.stringify(workspace));
 
-  const implicitDependencies = Object.keys(nxFile.implicitDependencies || {})
+  const implicitDependencies = Object.keys(nx.implicitDependencies || {})
     .map(file => ({ file }))
     .concat(
-      Object.entries(nxFile.projects).reduce((result: any[], [name, project]) => {
+      Object.entries(workspace.projects).reduce((result: any[], [name, project]) => {
         info('loop');
 
         const implicitDependencies = project?.implicitDependencies || [];
@@ -212,8 +216,8 @@ const main = async () => {
 
   info('3');
 
-  const appsDir = nxFile.workspaceLayout?.appsDir || 'apps';
-  const libsDir = nxFile.workspaceLayout?.libsDir || 'libs';
+  const appsDir = nx.workspaceLayout?.appsDir || 'apps';
+  const libsDir = nx.workspaceLayout?.libsDir || 'libs';
   const allApps = (await fs.readdir(appsDir)).filter(name => name[0] !== '.');
   const allLibs = (await fs.readdir(libsDir)).filter(name => name[0] !== '.');
 

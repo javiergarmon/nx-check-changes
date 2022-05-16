@@ -84,14 +84,15 @@ const getChanges = ({ appsDir, libsDir, allApps, allLibs, implicitDependencies, 
             const libName = lib.split('/').slice(-1)[0];
             accumulatedChanges.libs.add(lib.split('/').slice(-1)[0]);
             const projects = (_a = implicitDependencies.find(dependency => dependency.key === libName)) === null || _a === void 0 ? void 0 : _a.projects;
-            projects && [...projects].forEach((project) => {
-                if (allApps.includes(project)) {
-                    accumulatedChanges.apps.add(project.split('/').slice(-1)[0]);
-                }
-                if (allLibs.includes(project)) {
-                    accumulatedChanges.libs.add(project.split('/').slice(-1)[0]);
-                }
-            });
+            projects &&
+                [...projects].forEach((project) => {
+                    if (allApps.includes(project)) {
+                        accumulatedChanges.apps.add(project.split('/').slice(-1)[0]);
+                    }
+                    if (allLibs.includes(project)) {
+                        accumulatedChanges.libs.add(project.split('/').slice(-1)[0]);
+                    }
+                });
         }
         const app = findApp(file);
         if (app) {
@@ -118,13 +119,18 @@ const main = async () => {
         head: core_1.getInput('headRef'),
         ignore: core_1.getInput('ignore')
     });
+    core_1.info('1');
     const changedFiles = await getChangedFiles(octokit, base, head);
+    core_1.info('2');
     const nxFile = await readNxFile();
+    core_1.info(JSON.stringify(nxFile));
     const implicitDependencies = Object.keys(nxFile.implicitDependencies || {})
         .map(file => ({ file }))
         .concat(Object.entries(nxFile.projects).reduce((result, [name, project]) => {
+        core_1.info('loop');
         const implicitDependencies = (project === null || project === void 0 ? void 0 : project.implicitDependencies) || [];
         implicitDependencies.forEach(key => {
+            core_1.info('loop key');
             let lib = result.find(item => item.key === key);
             if (!lib) {
                 lib = { key, projects: new Set() };
@@ -134,10 +140,12 @@ const main = async () => {
         });
         return result;
     }, []));
+    core_1.info('3');
     const appsDir = ((_a = nxFile.workspaceLayout) === null || _a === void 0 ? void 0 : _a.appsDir) || 'apps';
     const libsDir = ((_b = nxFile.workspaceLayout) === null || _b === void 0 ? void 0 : _b.libsDir) || 'libs';
     const allApps = (await fs_1.promises.readdir(appsDir)).filter(name => name[0] !== '.');
     const allLibs = (await fs_1.promises.readdir(libsDir)).filter(name => name[0] !== '.');
+    core_1.info('4');
     const changes = getChanges({
         appsDir,
         libsDir,
